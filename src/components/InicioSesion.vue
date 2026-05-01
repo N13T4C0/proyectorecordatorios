@@ -43,15 +43,18 @@ onAuthStateChanged(auth, async (firebaseUser) => {
 
         if (provExterno || firebaseUser.emailVerified || esAdmin) {
             setDoc(doc(db, 'usuarios', firebaseUser.uid), { email: firebaseUser.email });
+            localStorage.setItem("autenticado", true);
             if (router.currentRoute.value.path === '/') {
                 router.push('/recordatorios');
             }
         } else {
             console.log("Email no verificado");
+            localStorage.removeItem("autenticado");
             router.push('/');
         }
     } else {
         idUsuario.value = "";
+        localStorage.removeItem("autenticado");
         router.push('/');
     }
 });

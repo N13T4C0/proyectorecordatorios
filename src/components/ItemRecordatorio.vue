@@ -281,8 +281,8 @@ span:last-of-type {
 }
 
 .btn-edit {
-  padding: 6px 12px;
-  font-size: 0.74rem;
+  padding: 8px 15px;
+  font-size: 0.82rem;
   font-weight: 500;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -301,8 +301,8 @@ span:last-of-type {
 }
 
 .btn-delete {
-  padding: 6px 12px;
-  font-size: 0.74rem;
+  padding: 8px 15px;
+  font-size: 0.82rem;
   font-weight: 500;
   letter-spacing: 0.05em;
   text-transform: uppercase;

@@ -31,14 +31,22 @@ const firebaseApp = initializeApp(firebaseConfig);
 
 // 2. Lógica de Rutas
 const routes = [
-  { path: '/', component: LandingPage },
-  { path: '/recordatorios', component: Recordatorios },
-  { path: '/administracion', component: Administracion }
+  { path: '/', component: LandingPage, meta: { requiresAuth: false } },
+  { path: '/recordatorios', component: Recordatorios, meta: { requiresAuth: true } },
+  { path: '/administracion', component: Administracion, meta: { requiresAuth: true } }
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes: routes,
+});
+
+router.beforeEach((to, from) => {
+  var estasAutenticado = localStorage.getItem("autenticado");
+
+  if (to.meta.requiresAuth && !estasAutenticado) {
+    return false;
+  } else return true;
 });
 
 // 3. Montaje de la App

@@ -94,12 +94,12 @@ async function subirArchivo() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
-  font-size: 1rem;
+  font-size: 1.3rem;
   line-height: 1;
   transition: all var(--transition);
   cursor: pointer;
@@ -114,8 +114,8 @@ async function subirArchivo() {
 }
 
 .btn-upload {
-  padding: 5px 10px;
-  font-size: 0.7rem;
+  padding: 7px 14px;
+  font-size: 0.78rem;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -125,7 +125,7 @@ async function subirArchivo() {
   background: transparent;
   color: rgba(76, 201, 240, 0.55);
   transition: all var(--transition);
-  height: 28px;
+  height: 36px;
 }
 
 .btn-upload:hover {
