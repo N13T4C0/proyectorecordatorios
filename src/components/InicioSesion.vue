@@ -11,8 +11,10 @@ import { sendEmailVerification } from 'firebase/auth';
 import { getAuth, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { useRouter } from 'vue-router';
 import firebase from 'firebase/compat/app';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 
 const auth = useFirebaseAuth();
+const db = getFirestore();
 const user = useCurrentUser();
 const router = useRouter(); // 
 const idUsuario = ref("");
@@ -21,7 +23,6 @@ const email = ref("");
 const password = ref("");
 const password2 = ref("");
 const conCuenta = ref(false);
-const imagenUsuario = ref("");
 
 // para la verificacion
 const actionCodeSettings = {
@@ -29,25 +30,28 @@ const actionCodeSettings = {
     url: 'http://localhost:5173/',
     handleCodeInApp: false,
 };
-onAuthStateChanged(auth, (firebaseUser) => {
+onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
-        // para recargar el nuevo valor de email ya que sino nos lo detecta como el antiguo
         idUsuario.value = firebaseUser.uid;
-        imagenUsuario.value = firebaseUser.photoURL || "";
-        console.log("Sesión iniciada:", firebaseUser.uid);
-        if(firebaseUser.emailVerified){
-            router.push('/recordatorios');
-        }else{
-            console.log("no verificado")
+
+        // const provExterno = firebaseUser.providerData.some(
+        //     p => p.id === 'google.com' || p.id === 'github.com'
+        // );
+        
+        const provExterno = firebaseUser.photoURL != null;
+        const esAdmin = firebaseUser.email === 'admin@admin.com';
+
+        if (provExterno || firebaseUser.emailVerified || esAdmin) {
+            setDoc(doc(db, 'usuarios', firebaseUser.uid), { email: firebaseUser.email });
+            if (router.currentRoute.value.path === '/') {
+                router.push('/recordatorios');
+            }
+        } else {
+            console.log("Email no verificado");
             router.push('/');
         }
-        // router.push('/recordatorios');
     } else {
         idUsuario.value = "";
-        imagenUsuario.value = "";
-        console.log("Sesión cerrada");
-
-        //  REDIRIGIR A LANDING PAGE CUANDO CIERRA ses
         router.push('/');
     }
 });
@@ -56,22 +60,9 @@ onAuthStateChanged(auth, (firebaseUser) => {
 
 const login = async () => {
     const provider = new GoogleAuthProvider();
-
-    try {
-        const result = await signInWithPopup(auth, provider);
-        // var emailAuth = email;
-        const user = result.user;
-        console.log("Usuario conectado:", user.displayName);
-        if (!user.emailVerified) {
-            await sendEmailVerification(user, actionCodeSettings);
-            console.log("Email de verificación enviado");
-        } else {
-            console.log("Email ya verificado ");
-        }
-    } catch (error) {
-        // Manejo de errores comunes
-        console.error("Error al iniciar sesión:", error.code, error.message);
-    }
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    console.log("Usuario conectado:", user.displayName);
 };
 
 const logout = async () => {
@@ -84,66 +75,30 @@ const registrarConEmail = async () => {
         console.log("Las contraseñas no coinciden");
         return;
     }
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value);
-        const user = userCredential.user;
-
-        await sendEmailVerification(user, actionCodeSettings);
-        console.log("correo enviado, registro normal");
-
-
-        email.value = "";
-        password.value = "";
-        password2.value = "";
-        conCuenta.value = false;
-        // El redirect se hace automáticamente en onAuthStateChanged
-    } catch (error) {
-        console.error("Error al registrar:", error);
-    }
+    const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value);
+    const user = userCredential.user;
+    await sendEmailVerification(user, actionCodeSettings);
+    email.value = "";
+    password.value = "";
+    password2.value = "";
+    conCuenta.value = false;
 };
 
 const loginConEmail = async () => {
-    try {
-
-        const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value);
-        const user = userCredential.user;
-        if(!user.emailVerified){
-            await sendEmailVerification(user, actionCodeSettings);
-            console.log("no estas verificado")
-            // si el email no esta verificado le enviamos correo
-        }else{
-            console.log("login cn exito");
-        }
-
-        email.value = "";
-        password.value = "";
-        // El redirect se hace automáticamente en onAuthStateChanged
-    } catch (error) {
-        console.error("Error en el login:", error.message);
-    }
+    await signInWithEmailAndPassword(auth, email.value, password.value);
+    email.value = "";
+    password.value = "";
 };
 
 const reseteoConta = async () => {
-    try {
-        if (!email.value) {
-            return console.log("pon el email")
-        }
-        await sendPasswordResetEmail(auth, email.value);
-        alert("Correo de recuperación enviado");
-    } catch (error) {
-        console.error("Error al enviar el correo", error);
-    }
+    if (!email.value) return;
+    await sendPasswordResetEmail(auth, email.value);
+    alert("Correo de recuperación enviado");
 };
 
 const loginGithub = async () => {
     const provider = new GithubAuthProvider();
-    try {
-        await signInWithPopup(auth, provider);
-        console.log("logeao con GitHub");
-        // El redirect se hace automáticamente en onAuthStateChanged
-    } catch (error) {
-        console.error("errorr al iniciar sesion:", error.code);
-    }
+    await signInWithPopup(auth, provider);
 };
 </script>
 
@@ -151,12 +106,12 @@ const loginGithub = async () => {
     <header class="auth-section">
         <div v-if="user" class="user-info">
             <p>Bienvenido, <strong>{{ user.email }}</strong></p>
-            <img :src="imagenUsuario" v-if="imagenUsuario" alt="Avatar">
+            <img :src="user.photoURL" v-if="user.photoURL" alt="Avatar" referrerpolicy="no-referrer">
             <button @click="logout" class="btn-secondary">Cerrar Sesión</button>
         </div>
         <div v-else class="login-prompt">
-            <p>Inicia sesión para ver tus recordatorios</p>
-            <button @click="login">Iniciar sesión con Google</button>
+            <p>Inicia sesion para ver tus recordatorios</p>
+            <button @click="login">Iniciar sesion con Google</button>
 
             <button @click="loginGithub" class="btn-github">Entrar con GitHub</button>
 
@@ -188,30 +143,149 @@ const loginGithub = async () => {
 </template>
 
 <style scoped>
+
+
 .auth-section {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 20px;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 8vw;
+  min-height: 62px;
+  background: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border-bottom: 1px solid var(--border);
 }
 
+/* ── Estado: sesión iniciada ─────────────────────────────── */
 .user-info {
-    display: flex;
-    align-items: center;
-    gap: 15px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-info p {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+}
+
+.user-info strong {
+  color: rgba(255, 255, 255, 0.68);
+  font-weight: 500;
 }
 
 .user-info img {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  object-fit: cover;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.user-info img:hover {
+  border-color: var(--red-dim);
+  box-shadow: 0 0 14px var(--red-glow);
 }
 
 .btn-secondary {
-    background-color: #95a5a6;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 6px 15px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.76rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+
+.btn-secondary:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+  background: rgba(255,255,255,0.04);
+}
+
+/* ── Estado: no logueado ─────────────────────────────────── */
+.login-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  max-width: 305px;
+  padding: 14px 0;
+}
+
+.login-prompt > p {
+  color: var(--text-dim);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.login-prompt button {
+  width: 100%;
+  padding: 9px 14px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.72);
+  border: 1px solid var(--border);
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.login-prompt button:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: var(--border-hover);
+  color: var(--text);
 }
 
 .btn-github {
-    background-color: #24292e;
-    color: white;
+  color: rgba(255,255,255,0.55) !important;
 }
+
+.login-prompt div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.login-prompt input {
+  width: 100%;
+  padding: 9px 11px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.86rem;
+  outline: none;
+  transition: border-color 0.26s ease, background 0.26s ease;
+}
+
+.login-prompt input:focus {
+  border-color: var(--border-focus);
+  background: rgba(230, 57, 70, 0.04);
+}
+
+.login-prompt input::placeholder { color: var(--text-dim); }
+
+.login-prompt a {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  align-self: flex-start;
+  transition: color var(--transition);
+}
+
+.login-prompt a:hover { color: var(--red-dim); }
 </style>

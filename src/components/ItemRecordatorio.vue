@@ -1,13 +1,12 @@
 <script setup>
 // import { ref } from 'firebase/database';
-import { defineProps, defineEmits } from 'vue';
-import {  ref,computed,onMounted,onUnmounted } from 'vue';
-import supabaseStorage from './supabaseStorage.vue';
-import { watch } from 'vue';
+import { defineProps, defineEmits } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import supabaseStorage from "./supabaseStorage.vue";
+import { watch } from "vue";
 
 // para descargar la url imagen con a href = ""?.download (probar)
 // ?download =${dato.archivo} download
-
 
 const props = defineProps({
   id: String,
@@ -16,12 +15,11 @@ const props = defineProps({
   prioridad: String,
   fecha: String,
   createdAt: String,
-  archivoUrl: String
+  archivoUrl: String,
 });
 
 const fechaAhora = ref(new Date());
 let intervalo;
-
 
 // para formatear la fecha
 const fechaFormateada = computed(() => {
@@ -31,62 +29,74 @@ const fechaFormateada = computed(() => {
 const fechaFormateadaRecor = computed(() => {
   const fechaRe = new Date(props.fecha);
   return fechaRe.toLocaleString();
-})
-
-
+});
 
 // pruebas
 
 // bucle para actualizar la fecha act cada segumdo
-onMounted(()=>{
-  intervalo = setInterval(()=>{
+onMounted(() => {
+  intervalo = setInterval(() => {
     fechaAhora.value = new Date();
   }, 1000);
 });
 
 // ahora hay q limpiar el intervalo
 
-onUnmounted(()=>{
+onUnmounted(() => {
   clearInterval(intervalo);
-})
+});
 
 // formatear
 const horaActualFormateada = computed(() => {
   return fechaAhora.value.toLocaleString();
 });
 
+const esHoraDelRecordatorio = computed(() => {
+  if (!props.fecha) return false;
 
-// comparar que son la misma fecha
-// const esMismaFecha = computed(() => {
-//   if (fechaAhora.value == fechaFormateadaRecor.value){
-//     // alert("misma fecha rec prueba");
-//     return alert("misma fecha");
-//   }
-// });
+  const ahora = fechaAhora.value;
+  const horaRecordatorio = new Date(props.fecha);
 
-// 
+  // Quitamos los segundos de ambas fechas para comparar solo min
+  ahora.setSeconds(0, 0);
+  horaRecordatorio.setSeconds(0, 0);
 
+  return ahora >= horaRecordatorio;
+});
 
+const emit = defineEmits([
+  "toggleCompletado",
+  "editarRecordatorio",
+  "borrarRecordatorio",
+  "recordatorioActivo",
+]);
 
-const emit = defineEmits(['toggleCompletado', 'editarRecordatorio', 'borrarRecordatorio']);
-// const prioridad = ref("");
+// se lo paso a recordatorios (padre) cuando llega la hora
+watch(esHoraDelRecordatorio, (llego) => {
+  if (llego) {
+    emit("recordatorioActivo", { id: props.id, nombre: props.nombre });
+  }
+});
+const confirmarBorrar = ref(false);
 </script>
 
 <template>
-  <li class="recordatorio-item">
+  <!-- para estilos -->
+  <li class="recordatorio-item" :class="`item-prio-${prioridad}`">
     <div class="recordatorio-info">
-      
       <div class="controles">
-        <input type="checkbox" :checked="completado" @change="emit('toggleCompletado')">
+        <input type="checkbox" :checked="completado" @change="emit('toggleCompletado')" />
         <span :class="{ tachado: completado }" class="nombre">
           {{ nombre }}
         </span>
       </div>
-      <img :src="archivoUrl" class="adjunto-imagen">
-
+      <a v-if="archivoUrl" :href="`${archivoUrl}?download=`" download class="btn-descargar">
+        Descargar archivo
+      </a>
 
       <div class="metadata">
-        <span class="prioridad-badge" :class="`prioridad-${prioridad}`">
+        <span class="prioridad-badge" :class="`prioridad-${prioridad}`"
+          >-
 
           {{ prioridad }}
         </span>
@@ -103,10 +113,8 @@ const emit = defineEmits(['toggleCompletado', 'editarRecordatorio', 'borrarRecor
       </div>
       <span>Creado --> {{ fechaFormateada }}</span>
 
-
-
       <!-- para la fecha rec -->
-       <!-- <div class="fechas">
+      <!-- <div class="fechas">
         <span>Ahora: {{ fechaActual }}</span>
         <span>Recordatorio: {{ fechaFormateadaRecor }}</span>
         <span v-if="esMismaFecha" class="alerta"> Misma fecha/hora </span>
@@ -114,163 +122,290 @@ const emit = defineEmits(['toggleCompletado', 'editarRecordatorio', 'borrarRecor
     </div>
 
     <div class="acciones">
-      <button @click="emit('editarRecordatorio')" class="btn-edit">
-        Editar
-      </button>
-      <button  @click = "emit('borrarRecordatorio')" class="btn-delete" >
-        Borrar
-        </button>
+      <button @click="emit('editarRecordatorio')" class="btn-edit">Editar</button>
+      <template v-if="confirmarBorrar">
+        <button @click="emit('borrarRecordatorio')" class="btn-delete">Seguro??</button>
+        <button @click="confirmarBorrar = false" class="btn-edit">No</button>
+      </template>
+      <button v-else @click="confirmarBorrar = true" class="btn-delete">Borrar</button>
       <supabaseStorage :recordatorioId="id"></supabaseStorage>
-        <p>{{ horaActualFormateada }}</p> 
-         <p>{{ fechaFormateadaRecor }}</p>
-        <!-- ya muestra a tiempo real la fecha actual  -->
     </div>
-    <div>
-      <!-- aqui enviar el email -->
-       <p v-if="horaActualFormateada == fechaFormateadaRecor || horaActualFormateada>fechaFormateadaRecor">Recordatorio llegado  a su hora  </p>
-        <!--cambiar de vista  hacer dos vistas recordatorios actuales y recordatorios cumplidos  -->
-       
-       <p v-else>No es la fecha</p>
 
+    <div v-if="fecha" class="pendiente-recordatorio">
+      {{ fechaFormateadaRecor }}
     </div>
   </li>
 </template>
 
 <style scoped>
-/*
-  Enter and leave animations can use different
-  durations and timing functions.
-*/
-.slide-fade-enter-active {
-  transition: all 0.3s ease-out;
-}
-
-.slide-fade-leave-active {
-  transition: all 0.8s cubic-bezier(1, 0.5, 0.8, 1);
-}
-
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateX(20px);
-  opacity: 0;
-}
-
 .recordatorio-item {
-  background-color: #f9f9f9;
-  margin-bottom: 10px;
-  padding: 15px;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 15px 18px 15px 22px;
+  border-radius: var(--radius);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.26s ease,
+    border-color 0.26s ease, background 0.26s ease;
 }
 
+/* Barra izquierda de prioridad con glow */
+.recordatorio-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2.5px;
+  background: var(--border);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.item-prio-alta::before {
+  background: var(--prio-alta);
+  box-shadow: 2px 0 12px var(--prio-alta-glow);
+}
+.item-prio-media::before {
+  background: var(--prio-media);
+  box-shadow: 2px 0 12px var(--prio-media-glow);
+}
+.item-prio-baja::before {
+  background: var(--prio-baja);
+  box-shadow: 2px 0 12px var(--prio-baja-glow);
+}
+
+/* Hover con sombra específica de cada prioridad */
 .recordatorio-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
 }
 
+.item-prio-alta:hover {
+  box-shadow: 0 8px 30px rgba(230, 57, 70, 0.1);
+}
+.item-prio-media:hover {
+  box-shadow: 0 8px 30px rgba(244, 162, 97, 0.09);
+}
+.item-prio-baja:hover {
+  box-shadow: 0 8px 30px rgba(76, 201, 240, 0.09);
+}
+
+/* ── Sección de información ──────────────────────────────── */
 .recordatorio-info {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
   flex: 1;
+  min-width: 0;
 }
 
 .controles {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.nombre {
-  font-size: 1.1rem;
-  font-weight: 500;
-  transition: all 0.3s;
+.controles .nombre {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+  transition: color 0.25s, opacity 0.25s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tachado {
   text-decoration: line-through;
-  color: #bdc3c7;
-  opacity: 0.6;
+  text-decoration-color: var(--border-hover);
+  color: var(--text-muted);
+  opacity: 0.55;
 }
 
+/* ── Metadatos ───────────────────────────────────────────── */
 .metadata {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  font-size: 0.85rem;
+  flex-wrap: wrap;
 }
 
 .prioridad-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-weight: bold;
-  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.63rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .prioridad-alta {
-  background-color: #e74c3c;
-  color: white;
+  background: rgba(230, 57, 70, 0.1);
+  color: var(--prio-alta);
 }
-
 .prioridad-media {
-  background-color: #f39c12;
-  color: white;
+  background: rgba(244, 162, 97, 0.1);
+  color: var(--prio-media);
 }
-
 .prioridad-baja {
-  background-color: #3498db;
-  color: white;
+  background: rgba(76, 201, 240, 0.08);
+  color: var(--prio-baja);
 }
 
 .fecha {
-  color: #7f8c8d;
+  color: var(--text-muted);
+  font-size: 0.77rem;
+  letter-spacing: 0.01em;
 }
 
+/* createdAt (último span en .recordatorio-info) */
+span:last-of-type {
+  color: var(--text-dim);
+  font-size: 0.71rem;
+  letter-spacing: 0.01em;
+}
+
+/* ── Acciones ────────────────────────────────────────────── */
 .acciones {
   display: flex;
-  gap: 8px;
-}
-
-.btn-edit,
-.btn-delete {
-  padding: 8px 12px;
-  font-size: 0.85rem;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: 5px;
+  flex-shrink: 0;
+  align-items: center;
 }
 
 .btn-edit {
-  background-color: #3498db;
-  color: white;
+  padding: 6px 12px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all var(--transition);
 }
 
 .btn-edit:hover {
-  background-color: #2980b9;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-color: var(--border-hover);
 }
 
 .btn-delete {
-  background-color: #e74c3c;
-  color: white;
+  padding: 6px 12px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid rgba(230, 57, 70, 0.18);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: transparent;
+  color: rgba(230, 57, 70, 0.55);
+  transition: all var(--transition);
 }
 
 .btn-delete:hover {
-  background-color: #c0392b;
+  background: rgba(230, 57, 70, 0.07);
+  color: var(--red);
+  border-color: rgba(230, 57, 70, 0.38);
 }
 
+/* ── Checkbox personalizado ──────────────────────────────── */
 input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
   cursor: pointer;
+  background: transparent;
+  transition: all 0.22s ease;
+  flex-shrink: 0;
+  position: relative;
 }
 
-img {
-  width: 120px;
+input[type="checkbox"]:checked {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 1.5px;
+  left: 4px;
+  width: 4px;
+  height: 7px;
+  border: 1.5px solid white;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+input[type="checkbox"]:hover:not(:checked) {
+  border-color: rgba(230, 57, 70, 0.42);
+}
+
+/* ── Enlace de descarga ──────────────────────────────────── */
+.btn-descargar {
+  display: inline-block;
+  background: transparent;
+  color: rgba(76, 201, 240, 0.6);
+  border: 1px solid rgba(76, 201, 240, 0.16);
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all var(--transition);
+  width: fit-content;
+}
+
+.btn-descargar:hover {
+  background: rgba(76, 201, 240, 0.06);
+  color: var(--cyan);
+  border-color: rgba(76, 201, 240, 0.3);
+}
+
+/* ── Tiempo pendiente del recordatorio ───────────────────── */
+.pendiente-recordatorio {
+  color: var(--text-dim);
+  font-size: 0.71rem;
+  letter-spacing: 0.03em;
+  margin-top: 2px;
+}
+
+/* ── Alerta activa ───────────────────────────────────────── */
+.alerta-recordatorio {
+  background: rgba(230, 57, 70, 0.09);
+  border: 1px solid rgba(230, 57, 70, 0.28);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.74rem;
+  animation: pulso 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes pulso {
+  from {
+    box-shadow: 0 0 5px rgba(230, 57, 70, 0.12);
+  }
+  to {
+    box-shadow: 0 0 18px rgba(230, 57, 70, 0.42);
+  }
 }
 </style>

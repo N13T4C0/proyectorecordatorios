@@ -37,3 +37,14 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+.env
+.env.local
+.env*.local
+
+# Firebase config real
+firebase-config.real.js
+
+# Build outputs
+dist/
+node_modules/
