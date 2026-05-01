@@ -1,6 +1,15 @@
-# Router
+# Proyecto Recordatorios
 
-This template should help get you started developing with Vue 3 in Vite.
+App de recordatorios con Vue 3, Firebase y Supabase.
+
+![screenshot](https://i.postimg.cc/prNVjZLy/Captura-de-pantalla-2026-05-01-224133.png)
+
+## Credenciales de admin
+
+- **Email:** admin@admin.com
+- **Contraseña:** admin123
+
+
 
 ## Recommended IDE Setup
 

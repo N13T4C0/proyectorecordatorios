@@ -95,10 +95,10 @@ async function confirmEdit(editarea, tareaedit) {
 }
 const alertasActivas = ref([]);
 
-async function onRecordatorioActivo({ id, nombre }) {
+ function onRecordatorioActivo({ id, nombre }) {
   if (!alertasActivas.value.find((a) => a.id === id)) {
     alertasActivas.value.push({ id, nombre });
-    await updateDoc(doc(db, "recordatorios", id), { completado: true });
+   updateDoc(doc(db, "recordatorios", id), { completado: true });
   }
 }
 
@@ -459,9 +459,9 @@ h1 {
 }
 
 .btn-admin {
-  background: transparent;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   padding: 7px 16px;
   border-radius: var(--radius-sm);
   font-size: 0.72rem;
