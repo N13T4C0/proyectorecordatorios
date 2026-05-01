@@ -56,6 +56,7 @@ const textoEditar = ref("");
 const prioridadEditar = ref("baja");
 const fechaEditar = ref("");
 
+// Carga los datos del recordatorio en el modal para editarlo
 function editarRecordatorio(index) {
   const rec = recordatoriosOrdenados.value[index];
   recordatorioEditando.value = rec.id;
@@ -95,7 +96,8 @@ async function confirmEdit(editarea, tareaedit) {
 }
 const alertasActivas = ref([]);
 
- function onRecordatorioActivo({ id, nombre }) {
+// Cuando llega la hora de un recordatorio, muestra alerta y lo mrca como completado
+function onRecordatorioActivo({ id, nombre }) {
   if (!alertasActivas.value.find((a) => a.id === id)) {
     alertasActivas.value.push({ id, nombre });
    updateDoc(doc(db, "recordatorios", id), { completado: true });
@@ -115,6 +117,7 @@ const consultaPrivada = computed(() =>
 );
 
 const recordatorios = useCollection(consultaPrivada);
+
 
 // func
 async function anadirRecordatorio() {
@@ -188,7 +191,7 @@ const stats = computed(() => {
     porPrioridad: {
       alta: lista.filter((r) => 
         r.prioridad == "alta" && !r.completado).length,
-      media: lista.filter((r) => r.prioridad == "media" && !r.completado).length,
+      media: lista.filter((r)=> r.prioridad == "media" && !r.completado).length,
       baja: lista.filter((r) => r.prioridad == "baja" && !r.completado).length,
     },
   };
